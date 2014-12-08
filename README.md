@@ -39,6 +39,15 @@ prefered binding site is mutated.
 
 Here different binding site mutation processes are compared.
 
+### HTML folder
+
+In the html folder one can find the html version of the notebooks, complete 
+with produced figures. Without the database (which is 1.4Gb) there is no way
+to reproduce the results currently in all ipython notebooks, hence the html
+versions. The individual species notebooks have the code to download zipped
+files which contain smaller datasets relative to particular species, but these
+files are also quite large (~300Mb).
+
 ### Notes
 
 The analysis shown in species notebooks have been automated in independent 
