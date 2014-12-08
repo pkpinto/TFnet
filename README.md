@@ -35,6 +35,8 @@ placed between nodes which differ by a single letter. The intention here is to
 understand how TFs can continue to work (binding to something) even when their 
 prefered binding site is mutated.
 
+The networks are created using NetworkX.
+
 ## TFnet_MOUSE_SNP+INDEL.ipynb
 
 Here different binding site mutation processes are compared.
