@@ -1,13 +1,17 @@
 # coding: utf-8
 
 from sqlalchemy import create_engine
-engine = create_engine('sqlite:///uniprobe_data.db')
+engine = create_engine('sqlite:///uniprobe.db')
 
 from sqlalchemy.ext.declarative import declarative_base
-Base = declarative_base()
+Base = declarative_base(bind=engine)
+metadata = Base.metadata
 
 from sqlalchemy import Column, ForeignKey, Integer, String, Float, Boolean
 from sqlalchemy.orm import relationship, backref
+
+from sqlalchemy.orm import sessionmaker
+session = sessionmaker(bind=engine)()
 
 import sqlalchemy.types as types
 
@@ -27,65 +31,62 @@ class StrIntBoolean(types.TypeDecorator):
         elif value == '0':
             return False
         else:
-            raise 'invalid value %s' % value
+            raise None
 
 
 class Gene(Base):
-    __tablename__ = 'gene_ids'
+    __tablename__ = 'genes'
 
     gene_id = Column(Integer, primary_key=True)
-    gene_name = Column(String)
-    species = Column(String)
-    publication_id = Column(Integer)
+    gene_name = Column(String, ForeignKey('genomic_info.gene_name'))
+    species = Column(String, ForeignKey('genomic_info.species'))
+    publication_id = Column(Integer, ForeignKey('publications.publication_id'))
     type = Column(String)
-    is_complex = Column(Boolean)
-    gene_id_name = Column(String)
-    has_pbm_data = Column(StrIntBoolean)
+    extended_name = Column('gene_id_name', String)
+
+    publication = relationship('Publication', backref=backref('genes'))
+    gene_info = relationship('GeneInfo', backref=backref('genes'),
+                             primaryjoin='(GeneInfo.gene_name == Gene.gene_name) &\
+                                          (GeneInfo.species == Gene.species)')
 
     def __repr__(self):
-        return '<Gene(gene_id=%s, gene_name=%s, species=%s, publication_id=%s)>' \
-            % (self.gene_id, self.gene_name, self.species, self.publication_id)
+        return '<Gene(gene_id=%s, gene_name=%s, species=%s, publication_id=%s)>' %\
+            (self.gene_id, self.gene_name, self.species, self.publication_id)
 
 
 class Contig(Base):
-    __tablename__ = 'contig_8mers_0'
+    __tablename__ = 'contigs'
 
-    gene_id = Column(Integer, ForeignKey('gene_ids.gene_id'), primary_key=True)
+    gene_id = Column(Integer, ForeignKey('genes.gene_id'), primary_key=True)
     kmer = Column(Integer, primary_key=True)
     enrichment_score = Column(Float)
 
     gene = relationship('Gene', backref=backref('contigs'))
 
     def __repr__(self):
-        return '<Contig(gene_id=%s, kmer=%s, enrichment_score=%s)>' \
-            % (self.gene_id, self.kmer, self.enrichment_score)
+        return '<Contig(gene_id=%s, kmer=%s, enrichment_score=%s)>' %\
+            (self.gene_id, self.kmer, self.enrichment_score)
 
 
 class Publication(Base):
-    __tablename__ = 'publication_ids'
+    __tablename__ = 'publications'
 
-    publication_id = Column(Integer, ForeignKey('gene_ids.publication_id'),
-                            primary_key=True)
-    small_ref = Column(String)
+    publication_id = Column(Integer, primary_key=True)
+    short_ref = Column('small_ref', String)
     full_ref = Column(String)
-    folder_name = Column(String)
-    is_bulyklab = Column(String)
-    in_TFBSshape = Column(String)
-
-    gene = relationship('Gene', backref=backref('publication'))
 
     def __repr__(self):
-        return '<Publication(publication_id=%s, small_ref=%s)>' %\
-            (self.publication_id, self.small_ref)
+        return '<Publication(publication_id=%s, short_ref=%s)>' %\
+            (self.publication_id, self.short_ref)
 
 
 class GeneInfo(Base):
     __tablename__ = 'genomic_info'
 
-    gene_name = Column(String, ForeignKey('gene_ids.gene_name'), primary_key=True)
+    gene_name = Column(String, primary_key=True)
     name = Column(String)
     synonyms = Column(String)
-    species = Column(String, ForeignKey('gene_ids.species'), primary_key=True)
+    species = Column(String, primary_key=True)
     ihop = Column(String)
     uniprot = Column(String)
     refseq_id = Column(String)
@@ -95,13 +96,25 @@ class GeneInfo(Base):
     description = Column(String)
     domain = Column(String)
 
-    gene = relationship('Gene', backref=backref('gene_info'),
-                        primaryjoin='(GeneInfo.gene_name == Gene.gene_name) & (GeneInfo.species == Gene.species)')
-
     def __repr__(self):
         return '<GeneInfo(gene_name=%s, synonyms=%s, species=%s)>' %\
             (self.gene_name, self.synonyms, self.species)
 
-from sqlalchemy.orm import sessionmaker
-Session = sessionmaker(bind=engine)
-session = Session()
+
+class GeneData(Base):
+    __tablename__ = 'gene_data'
+
+    gene_name = Column(String, primary_key=True)
+    species = Column(String, primary_key=True)
+    name = Column(String)
+    synonyms = Column(String)
+    uniprot = Column(String, ForeignKey('genomic_info.uniprot'), index=True)
+    fasta = Column(String)
+    xdom = Column(String)
+
+    gene_info = relationship('GeneInfo', backref=backref('gene_data',
+                                                         uselist=False))
+
+    def __repr__(self):
+        return '<GeneData(gene_name=%s, synonyms=%s, species=%s)>' %\
+            (self.gene_name, self.synonyms, self.species)
